@@ -44,7 +44,7 @@ jobs:
           python infrastructure/create_folders.py $BUCKET_NAME \
           "warehouse/event-driven-cpssw-artifacts/dist/" \
           "warehouse/event-driven-cpssw-artifacts/glue-scripts/" \
-          "warehouse/schema/"
+          "warehouse/schema/" \
           "warehouse/landing/zip_uploads/"
 
       - name: Build wheel file
