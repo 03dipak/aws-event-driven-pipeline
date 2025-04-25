@@ -59,8 +59,7 @@ jobs:
              event-driven-etl-workflow src/step_functions/state_machine_definition.json
 
       - name: Create a Eventbridge
-        run: python infrastructure/create_eventbridge.py event-driven-etl-workflow \
-            ${{ env.REGION }} \
+        run: python infrastructure/create_eventbridge.py event-driven-etl-workflow ${{ env.REGION }} \
             trigger-zip-upload-rule \
             $BUCKET_NAME \
             landing/zip_uploads/ \
