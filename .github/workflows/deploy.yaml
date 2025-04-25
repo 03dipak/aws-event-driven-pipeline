@@ -57,10 +57,10 @@ jobs:
       - name: Create a Step Function
         run: python infrastructure/create_step_function.py ${{ env.AWS_WEB_ROLE }} \
              event-driven-etl-workflow \
-             workflows/step_functions/state_machine_definition.json
+             ../workflows/step_functions/state_machine_definition.json
 
       - name: Create a Eventbridge
-        run: python infrastructure/create_eventbridge_rule.py event-driven-etl-workflow \
+        run: python infrastructure/create_eventbridge.py event-driven-etl-workflow \
              ${{ env.REGION }} $BUCKET_NAME landing/zip_uploads/ \
              ${{ env.AWS_WEB_ROLE }}
 
