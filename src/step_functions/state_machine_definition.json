@@ -1,247 +1,256 @@
 {
-    "Comment": "Step Function for event-driven ELT pipeline with parallel Bronze/Silver Dimension jobs and error handling.",
-    "StartAt": "ExtractZipFiles",
-    "States": {
-       "ExtractZipFiles": {
-        "Type": "Task",
-        "Resource": "arn:aws:lambda:ap-south-1:586794480834:function:unzip_and_upload_to_bronze",
-        "ResultPath": "$.lambda_result",
-        "Next": "RunBronzeJobs",
-        "Catch": [
-          {
-            "ErrorEquals": ["States.TaskFailed"],
-            "Next": "HandleFailure"
-          }
-        ]
+  "Comment": "Step Function for event-driven ELT pipeline with parallel Bronze/Silver Dimension jobs and error handling.",
+  "StartAt": "ExtractZipFiles",
+  "States": {
+    "ExtractZipFiles": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:ap-south-1:586794480834:function:unzip_and_upload_to_bronze",
+      "ResultPath": "$.lambda_result",
+      "Next": "RunBronzeJobs",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "Next": "HandleFailure"
+        }
+      ]
+    },
+    "RunBronzeJobs": {
+      "Type": "Map",
+      "ItemsPath": "$.bronze_jobs",
+      "Parameters": {
+        "JobName.$": "$$.Map.Item.Value"
       },
-      "RunBronzeJobs": {
-        "Type": "Map",
-        "ItemsPath": "$.bronze_jobs",
-        "Parameters": {
-          "JobName.$": "$$.Map.Item.Value"
-        },
-        "Iterator": {
-          "StartAt": "StartBronzeJob",
-          "States": {
-            "StartBronzeJob": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::glue:startJobRun",
-              "Parameters": {
-                "JobName.$": "$.JobName"
-              },
-              "ResultPath": "$.bronze_result",
-              "Next": "WaitBronzeJob"
+      "Iterator": {
+        "StartAt": "StartBronzeJob",
+        "States": {
+          "StartBronzeJob": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::glue:startJobRun",
+            "Parameters": {
+              "JobName.$": "$.JobName"
             },
-            "WaitBronzeJob": {
-              "Type": "Wait",
-              "Seconds": 30,
-              "Next": "CheckBronzeJobStatus"
-            },
-            "CheckBronzeJobStatus": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::aws-sdk:glue:getJobRun",
-              "Parameters": {
-                "JobName.$": "$.JobName",
-                "RunId.$": "$.bronze_result.JobRunId"
-              },
-              "ResultPath": "$.bronze_status",
-              "Next": "IsBronzeJobCompleted"
-            },
-            "IsBronzeJobCompleted": {
-              "Type": "Choice",
-              "Choices": [
-                {
-                  "Variable": "$.bronze_status.JobRun.JobRunState",
-                  "StringEquals": "SUCCEEDED",
-                  "Next": "BronzeJobSuccess"
-                },
-                {
-                  "Variable": "$.bronze_status.JobRun.JobRunState",
-                  "StringEquals": "FAILED",
-                  "Next": "HandleFailure"
-                },
-                {
-                  "Variable": "$.bronze_status.JobRun.JobRunState",
-                  "StringEquals": "STOPPED",
-                  "Next": "HandleFailure"
-                }
-              ],
-              "Default": "WaitBronzeJob"
-            },
-            "BronzeJobSuccess": {
-              "Type": "Pass",
-              "End": true
-            }
-          }
-        },
-        "ResultPath": "$.bronze_results",
-        "Next": "RunSilverDimensionJobs"
-      },
-      "RunSilverDimensionJobs": {
-        "Type": "Map",
-        "ItemsPath": "$.silver_dimension_jobs",
-        "Parameters": {
-          "JobName.$": "$$.Map.Item.Value"
-        },
-        "Iterator": {
-          "StartAt": "StartSilverDimensionJob",
-          "States": {
-            "StartSilverDimensionJob": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::glue:startJobRun",
-              "Parameters": {
-                "JobName.$": "$.JobName"
-              },
-              "ResultPath": "$.result",
-              "Next": "WaitSilverDim"
-            },
-            "WaitSilverDim": {
-              "Type": "Wait",
-              "Seconds": 30,
-              "Next": "CheckSilverDimStatus"
-            },
-            "CheckSilverDimStatus": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::aws-sdk:glue:getJobRun",
-              "Parameters": {
-                "JobName.$": "$.JobName",
-                "RunId.$": "$.result.JobRunId"
-              },
-              "ResultPath": "$.status",
-              "Next": "IsSilverDimCompleted"
-            },
-            "IsSilverDimCompleted": {
-              "Type": "Choice",
-              "Choices": [
-                {
-                  "Variable": "$.status.JobRun.JobRunState",
-                  "StringEquals": "SUCCEEDED",
-                  "Next": "SilverDimSuccess"
-                },
-                {
-                  "Variable": "$.status.JobRun.JobRunState",
-                  "StringEquals": "FAILED",
-                  "Next": "HandleFailure"
-                },
-                {
-                  "Variable": "$.status.JobRun.JobRunState",
-                  "StringEquals": "STOPPED",
-                  "Next": "HandleFailure"
-                }
-              ],
-              "Default": "WaitSilverDim"
-            },
-            "SilverDimSuccess": {
-              "Type": "Pass",
-              "End": true
-            }
-          }
-        },
-        "ResultPath": "$.silver_dimension_results",
-        "Next": "RunSilverFactJob"
-      },
-      "RunSilverFactJob": {
-        "Type": "Task",
-        "Resource": "arn:aws:states:::glue:startJobRun",
-        "Parameters": {
-          "JobName": "silver_fact_sale_orders"
-        },
-        "ResultPath": "$.silver_fact_result",
-        "Next": "WaitSilverFact"
-      },
-      "WaitSilverFact": {
-        "Type": "Wait",
-        "Seconds": 30,
-        "Next": "CheckSilverFactStatus"
-      },
-      "CheckSilverFactStatus": {
-        "Type": "Task",
-        "Resource": "arn:aws:states:::aws-sdk:glue:getJobRun",
-        "Parameters": {
-          "JobName": "silver_fact_sale_orders",
-          "RunId.$": "$.silver_fact_result.JobRunId"
-        },
-        "ResultPath": "$.silver_fact_status",
-        "Next": "IsSilverFactCompleted"
-      },
-      "IsSilverFactCompleted": {
-        "Type": "Choice",
-        "Choices": [
-          {
-            "Variable": "$.silver_fact_status.JobRun.JobRunState",
-            "StringEquals": "SUCCEEDED",
-            "Next": "RunGoldJob"
+            "ResultPath": "$.bronze_result",
+            "Next": "WaitBronzeJob"
           },
-          {
-            "Variable": "$.silver_fact_status.JobRun.JobRunState",
-            "StringEquals": "FAILED",
-            "Next": "HandleFailure"
+          "WaitBronzeJob": {
+            "Type": "Wait",
+            "Seconds": 30,
+            "Next": "CheckBronzeJobStatus"
           },
-          {
-            "Variable": "$.silver_fact_status.JobRun.JobRunState",
-            "StringEquals": "STOPPED",
-            "Next": "HandleFailure"
+          "CheckBronzeJobStatus": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::aws-sdk:glue:getJobRun",
+            "Parameters": {
+              "JobName.$": "$.JobName",
+              "RunId.$": "$.bronze_result.JobRunId"
+            },
+            "ResultPath": "$.bronze_status",
+            "Next": "IsBronzeJobCompleted"
+          },
+          "IsBronzeJobCompleted": {
+            "Type": "Choice",
+            "Choices": [
+              {
+                "Variable": "$.bronze_status.JobRun.JobRunState",
+                "StringEquals": "SUCCEEDED",
+                "Next": "BronzeJobSuccess"
+              },
+              {
+                "Variable": "$.bronze_status.JobRun.JobRunState",
+                "StringEquals": "FAILED",
+                "Next": "BronzeJobFailed"
+              },
+              {
+                "Variable": "$.bronze_status.JobRun.JobRunState",
+                "StringEquals": "STOPPED",
+                "Next": "BronzeJobFailed"
+              }
+            ],
+            "Default": "WaitBronzeJob"
+          },
+          "BronzeJobSuccess": {
+            "Type": "Pass",
+            "End": true
+          },
+          "BronzeJobFailed": {
+            "Type": "Fail",
+            "Error": "BronzeJobFailed",
+            "Cause": "The Bronze Glue job failed."
           }
-        ],
-        "Default": "WaitSilverFact"
+        }
       },
-      "RunGoldJob": {
-        "Type": "Task",
-        "Resource": "arn:aws:states:::glue:startJobRun",
-        "Parameters": {
-          "JobName": "gold_summary_reports"
-        },
-        "ResultPath": "$.gold_result",
-        "Next": "WaitGold"
+      "ResultPath": "$.bronze_results",
+      "Next": "RunSilverDimensionJobs"
+    },
+    "RunSilverDimensionJobs": {
+      "Type": "Map",
+      "ItemsPath": "$.silver_dimension_jobs",
+      "Parameters": {
+        "JobName.$": "$$.Map.Item.Value"
       },
-      "WaitGold": {
-        "Type": "Wait",
-        "Seconds": 30,
-        "Next": "CheckGoldStatus"
-      },
-      "CheckGoldStatus": {
-        "Type": "Task",
-        "Resource": "arn:aws:states:::aws-sdk:glue:getJobRun",
-        "Parameters": {
-          "JobName": "gold_summary_reports",
-          "RunId.$": "$.gold_result.JobRunId"
-        },
-        "ResultPath": "$.gold_status",
-        "Next": "IsGoldCompleted"
-      },
-      "IsGoldCompleted": {
-        "Type": "Choice",
-        "Choices": [
-          {
-            "Variable": "$.gold_status.JobRun.JobRunState",
-            "StringEquals": "SUCCEEDED",
-            "Next": "EndWorkflow"
+      "Iterator": {
+        "StartAt": "StartSilverDimensionJob",
+        "States": {
+          "StartSilverDimensionJob": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::glue:startJobRun",
+            "Parameters": {
+              "JobName.$": "$.JobName"
+            },
+            "ResultPath": "$.result",
+            "Next": "WaitSilverDim"
           },
-          {
-            "Variable": "$.gold_status.JobRun.JobRunState",
-            "StringEquals": "FAILED",
-            "Next": "HandleFailure"
+          "WaitSilverDim": {
+            "Type": "Wait",
+            "Seconds": 30,
+            "Next": "CheckSilverDimStatus"
           },
-          {
-            "Variable": "$.gold_status.JobRun.JobRunState",
-            "StringEquals": "STOPPED",
-            "Next": "HandleFailure"
+          "CheckSilverDimStatus": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::aws-sdk:glue:getJobRun",
+            "Parameters": {
+              "JobName.$": "$.JobName",
+              "RunId.$": "$.result.JobRunId"
+            },
+            "ResultPath": "$.status",
+            "Next": "IsSilverDimCompleted"
+          },
+          "IsSilverDimCompleted": {
+            "Type": "Choice",
+            "Choices": [
+              {
+                "Variable": "$.status.JobRun.JobRunState",
+                "StringEquals": "SUCCEEDED",
+                "Next": "SilverDimSuccess"
+              },
+              {
+                "Variable": "$.status.JobRun.JobRunState",
+                "StringEquals": "FAILED",
+                "Next": "SilverDimJobFailed"
+              },
+              {
+                "Variable": "$.status.JobRun.JobRunState",
+                "StringEquals": "STOPPED",
+                "Next": "SilverDimJobFailed"
+              }
+            ],
+            "Default": "WaitSilverDim"
+          },
+          "SilverDimSuccess": {
+            "Type": "Pass",
+            "End": true
+          },
+          "SilverDimJobFailed": {
+            "Type": "Fail",
+            "Error": "SilverDimJobFailed",
+            "Cause": "The Silver Dimension Glue job failed."
           }
-        ],
-        "Default": "WaitGold"
+        }
       },
-      "HandleFailure": {
-        "Type": "Task",
-        "Resource": "arn:aws:lambda:ap-south-1:586794480834:function:glue_failed_job",
-        "Parameters": {
-          "errorDetails.$": "$"
+      "ResultPath": "$.silver_dimension_results",
+      "Next": "RunSilverFactJob"
+    },
+    "RunSilverFactJob": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::glue:startJobRun",
+      "Parameters": {
+        "JobName": "silver_fact_sale_orders"
+      },
+      "ResultPath": "$.silver_fact_result",
+      "Next": "WaitSilverFact"
+    },
+    "WaitSilverFact": {
+      "Type": "Wait",
+      "Seconds": 30,
+      "Next": "CheckSilverFactStatus"
+    },
+    "CheckSilverFactStatus": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:glue:getJobRun",
+      "Parameters": {
+        "JobName": "silver_fact_sale_orders",
+        "RunId.$": "$.silver_fact_result.JobRunId"
+      },
+      "ResultPath": "$.silver_fact_status",
+      "Next": "IsSilverFactCompleted"
+    },
+    "IsSilverFactCompleted": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.silver_fact_status.JobRun.JobRunState",
+          "StringEquals": "SUCCEEDED",
+          "Next": "RunGoldJob"
         },
-        "End": true
+        {
+          "Variable": "$.silver_fact_status.JobRun.JobRunState",
+          "StringEquals": "FAILED",
+          "Next": "HandleFailure"
+        },
+        {
+          "Variable": "$.silver_fact_status.JobRun.JobRunState",
+          "StringEquals": "STOPPED",
+          "Next": "HandleFailure"
+        }
+      ],
+      "Default": "WaitSilverFact"
+    },
+    "RunGoldJob": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::glue:startJobRun",
+      "Parameters": {
+        "JobName": "gold_summary_reports"
       },
-      "EndWorkflow": {
-        "Type": "Pass",
-        "End": true
-      }
+      "ResultPath": "$.gold_result",
+      "Next": "WaitGold"
+    },
+    "WaitGold": {
+      "Type": "Wait",
+      "Seconds": 30,
+      "Next": "CheckGoldStatus"
+    },
+    "CheckGoldStatus": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:glue:getJobRun",
+      "Parameters": {
+        "JobName": "gold_summary_reports",
+        "RunId.$": "$.gold_result.JobRunId"
+      },
+      "ResultPath": "$.gold_status",
+      "Next": "IsGoldCompleted"
+    },
+    "IsGoldCompleted": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.gold_status.JobRun.JobRunState",
+          "StringEquals": "SUCCEEDED",
+          "Next": "EndWorkflow"
+        },
+        {
+          "Variable": "$.gold_status.JobRun.JobRunState",
+          "StringEquals": "FAILED",
+          "Next": "HandleFailure"
+        },
+        {
+          "Variable": "$.gold_status.JobRun.JobRunState",
+          "StringEquals": "STOPPED",
+          "Next": "HandleFailure"
+        }
+      ],
+      "Default": "WaitGold"
+    },
+    "HandleFailure": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:ap-south-1:586794480834:function:glue_failed_job",
+      "Parameters": {
+        "errorDetails.$": "$"
+      },
+      "End": true
+    },
+    "EndWorkflow": {
+      "Type": "Pass",
+      "End": true
     }
   }
-  
+}
