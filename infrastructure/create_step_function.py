@@ -55,8 +55,8 @@ if __name__ == "__main__":
         print("Usage: python create_or_update_step_function.py <role_arn> <state_machine_name> <json_file_path>")
         sys.exit(1)
 
-    role_arn = sys.argv[1]
-    state_machine_name = sys.argv[2]
-    json_file_path = sys.argv[3]
+    role_arn = sys.argv[1].strip()
+    state_machine_name = sys.argv[2].strip()
+    json_file_path = sys.argv[3].strip()
 
     create_or_update_step_function(role_arn, state_machine_name, json_file_path)
