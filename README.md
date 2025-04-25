@@ -58,7 +58,7 @@ GitHub Actions for CI/CD pipelines (testing, packaging as wheel, deploying ETL j
 Builds ETL code into a wheel and uploads to S3.
 Deploys infrastructure (Glue jobs, Step Functions, Lambda, EventBridge) via Boto3 scripts.
 Uses matrix strategy to deploy multiple Glue jobs and track schema migrations with versioned YAMLs.
-Supports skipping specific job deployments using commit message tags like [cli skip].
+Supports skipping specific job deployments using commit message tags like [skip ci].
 </code></pre>
 ## 🛠️ Key Features
 <pre><code>
