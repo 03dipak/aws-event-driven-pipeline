@@ -41,16 +41,16 @@ def create_eventbridge_rule(region, rule_name, s3_bucket, s3_prefix, event_role_
     )
 
 def main():
-    if len(sys.argv) != 8:
-        print("Usage: python create_eventbridge_rule.py <step_function_name> <region> <s3_bucket> <s3_prefix> <role_arn>")
+    if len(sys.argv) != 7:
+        print("Usage: python create_eventbridge.py <step_function_name> <region> <s3_bucket> <s3_prefix> <role_arn>")
         sys.exit(1)
 
-    step_function_name = sys.argv[2]
-    region = sys.argv[3]
-    rule_name = sys.argv[4]
-    s3_bucket = sys.argv[5]
-    s3_prefix = sys.argv[6]
-    role_arn = sys.argv[7]
+    step_function_name = sys.argv[1]
+    region = sys.argv[2]
+    rule_name = sys.argv[3]
+    s3_bucket = sys.argv[4]
+    s3_prefix = sys.argv[5]
+    role_arn = sys.argv[6]
 
     state_machine_arn = get_step_function_arn(region, step_function_name, role_arn)
 
