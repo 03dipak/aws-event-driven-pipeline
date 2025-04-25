@@ -19,6 +19,17 @@ def zip_lambda(lambda_path, zip_path):
                 zipf.write(file_path, arcname)
 
 def deploy_lambda(lambda_name, lambda_path, role_arn, region, runtime="python3.10", handler="lambda_function.lambda_handler"):
+    # Set environment variables conditionally
+    environment_variables = {}
+    
+    # Add environment variable for Glue jobs (if lambda_name matches a Glue job)
+    if 'glue_failed_job' == lambda_name.lower():
+        sns_topic_arn = f"arn:aws:sns:{region}:{role_arn.split(':')[4]}:GlueJobErrors"
+        environment_variables = {
+            'SNS_TOPIC_ARN': sns_topic_arn  # Set the SNS_TOPIC_ARN for Glue jobs
+        }
+
+    # Zip the Lambda function code
     zip_path = f"/tmp/{lambda_name}.zip"
     zip_lambda(lambda_path, zip_path)
 
@@ -27,6 +38,7 @@ def deploy_lambda(lambda_name, lambda_path, role_arn, region, runtime="python3.1
         zipped_code = f.read()
 
     try:
+        # If the Lambda function exists, update it
         client.get_function(FunctionName=lambda_name)
         print(f"Updating Lambda: {lambda_name}")
         response_code = client.update_function_code(
@@ -34,8 +46,18 @@ def deploy_lambda(lambda_name, lambda_path, role_arn, region, runtime="python3.1
             ZipFile=zipped_code,
             Publish=True
         )
+
+        # If the Lambda function exists, update the configuration with environment variables
+        client.update_function_configuration(
+            FunctionName=lambda_name,
+            Environment={
+                'Variables': environment_variables  # Apply the environment variables
+            }
+        )
+
         print(response_code)
     except client.exceptions.ResourceNotFoundException:
+        # If the Lambda function doesn't exist, create it
         print(f"Creating Lambda: {lambda_name}")
         response = client.create_function(
             FunctionName=lambda_name,
@@ -45,8 +67,12 @@ def deploy_lambda(lambda_name, lambda_path, role_arn, region, runtime="python3.1
             Code={'ZipFile': zipped_code},
             Timeout=30,
             MemorySize=128,
-            Publish=True
+            Publish=True,
+            Environment={
+                'Variables': environment_variables  # Set environment variables during creation
+            }
         )
+        print(response)
 
 if __name__ == "__main__":
     role_arn = sys.argv[1]
@@ -57,5 +83,5 @@ if __name__ == "__main__":
 
     for lambda_name in lambda_filenames:
         lambda_path = Path(lambda_base_path) / lambda_name
-        lambda_path = lambda_path.as_posix() 
+        lambda_path = lambda_path.as_posix()  # Ensure using the correct path format
         deploy_lambda(lambda_name, lambda_path, role_arn, region)

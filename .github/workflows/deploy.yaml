@@ -59,14 +59,10 @@ jobs:
              event-driven-etl-workflow src/step_functions/state_machine_definition.json
 
       - name: Create a Eventbridge
-        run: python infrastructure/create_eventbridge.py event-driven-etl-workflow ${{ env.REGION }} "trigger-zip-upload-rule" $BUCKET_NAME "landing/zip_uploads/" ${{ env.AWS_WEB_ROLE }}
+        run: python infrastructure/create_eventbridge.py event-driven-etl-workflow ${{ env.REGION }} "trigger-zip-upload-rule" $BUCKET_NAME "landing/zip_uploads/" ${{ env. AWS_WEB_ROLE }}
 
       - name: Create a Lambda
         run: python infrastructure/create_lambda.py ${{ env.AWS_WEB_ROLE }} ${{ env.REGION }}
-
-      - name: Create a Lambda Environment Variable
-        run: python infrastructure/create_lambda_environment.py glue_failed_job \
-             ${{ env.AWS_WEB_ROLE }}
 
       - name: Create a SNS
         run: python infrastructure/create_sns.py
