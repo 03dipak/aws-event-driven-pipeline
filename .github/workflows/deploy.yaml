@@ -14,6 +14,69 @@ env:
   WHEEL_FILE_NAME: event_driven_cpssw-0.1.0-py3-none-any.whl
 
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ env.AWS_WEB_ROLE }}
+          aws-region: ${{ env.REGION }}
+
+      - name: Create S3 folders if not exist
+        run: |
+          python infrastructure/create_folders.py $BUCKET_NAME \
+          "warehouse/event-driven-cpssw-artifacts/dist/" \
+          "warehouse/event-driven-cpssw-artifacts/glue-scripts/" \
+          "warehouse/schema/" \
+          "warehouse/landing/zip_uploads/"
+
+      - name: Build wheel file
+        run: python setup.py bdist_wheel
+
+      - name: Upload Wheel Artifact to S3
+        run: |
+          aws s3 cp dist/$WHEEL_FILE_NAME \
+          s3://$BUCKET_NAME/warehouse/event-driven-cpssw-artifacts/dist/
+          aws s3 cp glue_jobs \
+          s3://$BUCKET_NAME/warehouse/event-driven-cpssw-artifacts/glue-scripts/ \
+          --recursive
+          aws s3 sync iceberg_schema/ s3://$BUCKET_NAME/warehouse/schema/ \
+          --exact-timestamps
+
+      - name: Create a Database
+        run: python infrastructure/create_database.py ${{ env.REGION }} \
+             $BUCKET_NAME bronze,silver,gold,meta_db
+
+      - name: Create a Step Function
+        run: python infrastructure/create_step_function.py ${{ env.AWS_WEB_ROLE }} \
+             event-driven-etl-workflow src/step_functions/state_machine_definition.json
+
+      - name: Create a Eventbridge
+        run: python infrastructure/create_eventbridge.py event-driven-etl-workflow ${{ env.REGION }} "trigger-zip-upload-rule" $BUCKET_NAME "landing/zip_uploads/" ${{ env. AWS_WEB_ROLE }}
+
+      - name: Create a Lambda
+        run: python infrastructure/create_lambda.py ${{ env.AWS_WEB_ROLE }} ${{ env.REGION }}
+
+      - name: Create a SNS
+        run: python infrastructure/create_sns.py
+
   deploy_glue_jobs:
     needs: setup
     runs-on: ubuntu-latest
@@ -54,11 +117,17 @@ jobs:
           role-to-assume: ${{ env.AWS_WEB_ROLE }}
           aws-region: ${{ env.REGION }}
 
+      - name: Create S3 folders if not exist
+        run: |
+          JOB_NAME=$(basename "${{ matrix.glue }}")
+          FOLDER_PATH="event-driven-cpssw-artifacts/code/temp/${JOB_NAME}/"
+          echo "Creating folder in S3: $FOLDER_PATH"
+          python infrastructure/create_folders.py $BUCKET_NAME $FOLDER_PATH
+
       - name: Deploy Glue Job - ${{ matrix.glue }}
         run: |
           JOB_NAME=$(basename "${{ matrix.glue }}")
-          python infrastructure/create_glue_jobs.py ${JOB_NAME} \
-          $AWS_WEB_ROLE \
+          python infrastructure/create_glue_jobs.py ${JOB_NAME} $AWS_WEB_ROLE \
           s3://$BUCKET_NAME/warehouse/event-driven-cpssw-artifacts/glue-scripts/${{ matrix.glue }}.py \
           $BUCKET_NAME \
           s3://$BUCKET_NAME/warehouse/event-driven-cpssw-artifacts/dist/$WHEEL_FILE_NAME
