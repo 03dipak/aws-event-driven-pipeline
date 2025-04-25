@@ -50,6 +50,16 @@ jobs:
       - name: Build wheel file
         run: python setup.py bdist_wheel
 
+      - name: Upload Wheel Artifact to S3
+        run: |
+          aws s3 cp dist/$WHEEL_FILE_NAME \
+          s3://$BUCKET_NAME/warehouse/event-driven-cpssw-artifacts/dist/
+          aws s3 cp glue_jobs \
+          s3://$BUCKET_NAME/warehouse/event-driven-cpssw-artifacts/glue-scripts/ \
+          --recursive
+          aws s3 sync iceberg_schema/ s3://$BUCKET_NAME/warehouse/schema/ \
+          --exact-timestamps
+
       - name: Create a Database
         run: python infrastructure/create_database.py ${{ env.REGION }} \
              $BUCKET_NAME bronze,silver,gold,meta_db
@@ -66,16 +76,6 @@ jobs:
 
       - name: Create a SNS
         run: python infrastructure/create_sns.py
-
-      - name: Upload Wheel Artifact to S3
-        run: |
-          aws s3 cp dist/$WHEEL_FILE_NAME \
-          s3://$BUCKET_NAME/warehouse/event-driven-cpssw-artifacts/dist/
-          aws s3 cp glue_jobs \
-          s3://$BUCKET_NAME/warehouse/event-driven-cpssw-artifacts/glue-scripts/ \
-          --recursive
-          aws s3 sync iceberg_schema/ s3://$BUCKET_NAME/warehouse/schema/ \
-          --exact-timestamps
 
   deploy_glue_jobs:
     needs: setup
