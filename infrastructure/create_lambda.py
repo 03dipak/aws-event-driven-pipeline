@@ -2,7 +2,9 @@ import boto3
 import zipfile
 import os
 import sys
+import time
 from pathlib import Path
+from botocore.exceptions import ClientError
 
 def zip_lambda(lambda_path, zip_path):
     try:
@@ -38,24 +40,37 @@ def deploy_lambda(lambda_name, lambda_path, role_arn, region, runtime="python3.1
         zipped_code = f.read()
 
     try:
-        # If the Lambda function exists, update it
+        # Try to get the function to check if it exists
         client.get_function(FunctionName=lambda_name)
         print(f"Updating Lambda: {lambda_name}")
-        response_code = client.update_function_code(
-            FunctionName=lambda_name,
-            ZipFile=zipped_code,
-            Publish=True
-        )
+        
+        # Wait until the function is not in progress
+        while True:
+            try:
+                # Try to update the function code
+                response_code = client.update_function_code(
+                    FunctionName=lambda_name,
+                    ZipFile=zipped_code,
+                    Publish=True,
+                    Environment={
+                            'Variables': environment_variables  # Apply the environment variables
+                        }
+                )
 
-        # If the Lambda function exists, update the configuration with environment variables
-        client.update_function_configuration(
-            FunctionName=lambda_name,
-            Environment={
-                'Variables': environment_variables  # Apply the environment variables
-            }
-        )
+                # Update the function configuration with environment variables
+                if environment_variables:
+                    client.update_function_configuration(
+                        FunctionName=lambda_name,
+                        Environment={
+                            'Variables': environment_variables  # Apply the environment variables
+                        }
+                    )
+                print("Lambda updated successfully!")
+                break
+            except client.exceptions.ResourceConflictException:
+                print(f"Update in progress for Lambda: {lambda_name}. Retrying...")
+                time.sleep(30)  # Retry after 30 seconds
 
-        print(response_code)
     except client.exceptions.ResourceNotFoundException:
         # If the Lambda function doesn't exist, create it
         print(f"Creating Lambda: {lambda_name}")
