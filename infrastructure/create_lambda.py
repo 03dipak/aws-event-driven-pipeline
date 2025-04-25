@@ -2,8 +2,15 @@ import boto3
 import zipfile
 import os
 import sys
+from pathlib import Path
 
 def zip_lambda(lambda_path, zip_path):
+    try:
+        # Try to create the directory if it doesn't exist
+        os.makedirs(os.path.dirname(zip_path), exist_ok=True)
+    except FileExistsError:
+        # If the directory exists, this exception will be caught and ignored
+        pass
     with zipfile.ZipFile(zip_path, 'w') as zipf:
         for root, dirs, files in os.walk(lambda_path):
             for file in files:
@@ -40,16 +47,15 @@ def deploy_lambda(lambda_name, lambda_path, role_arn, region, runtime="python3.1
             MemorySize=128,
             Publish=True
         )
-        print(response)
 
 if __name__ == "__main__":
     role_arn = sys.argv[1]
     region = sys.argv[2]
 
     lambda_filenames = ["glue_failed_job", "unzip_and_upload_to_bronze"]
-    lambda_base_path = "src/lambdas/"
+    lambda_base_path = "src/lambdas"
 
-    for filename in lambda_filenames:
-        lambda_name = filename.replace(".py", "")
-        lambda_path = os.path.join(lambda_base_path, filename)
+    for lambda_name in lambda_filenames:
+        lambda_path = Path(lambda_base_path) / lambda_name
+        lambda_path = lambda_path.as_posix() 
         deploy_lambda(lambda_name, lambda_path, role_arn, region)
