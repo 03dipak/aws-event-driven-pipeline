@@ -44,16 +44,17 @@ def deploy_lambda(lambda_name, lambda_path, role_arn, region, runtime="python3.1
         client.get_function(FunctionName=lambda_name)
         print(f"Updating Lambda: {lambda_name}")
         
+        # First, update the function code
+        client.update_function_code(
+            FunctionName=lambda_name,
+            ZipFile=zipped_code,
+            Publish=True
+        )
+        print("Lambda code updated successfully!")
+
         # Wait until the function is not in progress
         while True:
             try:
-                # Try to update the function code
-                response_code = client.update_function_code(
-                    FunctionName=lambda_name,
-                    ZipFile=zipped_code,
-                    Publish=True
-                )
-
                 # Update the function configuration with environment variables
                 if environment_variables:
                     client.update_function_configuration(
@@ -62,9 +63,10 @@ def deploy_lambda(lambda_name, lambda_path, role_arn, region, runtime="python3.1
                             'Variables': environment_variables  # Apply the environment variables
                         }
                     )
-                print("Lambda updated successfully!")
+                print("Lambda environment variables updated successfully!")
                 break
             except client.exceptions.ResourceConflictException:
+                # Retry if the update is still in progress
                 print(f"Update in progress for Lambda: {lambda_name}. Retrying...")
                 time.sleep(30)  # Retry after 30 seconds
 
