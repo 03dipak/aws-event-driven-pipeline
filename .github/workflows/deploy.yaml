@@ -64,17 +64,31 @@ jobs:
         run: python infrastructure/create_database.py ${{ env.REGION }} \
              $BUCKET_NAME bronze,silver,gold,meta_db
 
-      - name: Create a Step Function
+      - name: Create a Step Function if changed
+        if: |
+          github.event.head_commit.modified.includes('src/step_functions/state_machine_definition.json') || 
+          github.event.before == '0000000000000000000000000000000000000000'
         run: python infrastructure/create_step_function.py ${{ env.AWS_WEB_ROLE }} \
              event-driven-etl-workflow src/step_functions/state_machine_definition.json
 
-      - name: Create a Eventbridge
+      - name: Create a Eventbridge if changed
+        if: |
+          github.event.head_commit.modified.includes('infrastructure/create_eventbridge.py') || 
+          github.event.before == '0000000000000000000000000000000000000000'
         run: python infrastructure/create_eventbridge.py event-driven-etl-workflow ${{ env.REGION }} "trigger-zip-upload-rule" $BUCKET_NAME "landing/zip_uploads/" ${{ env. AWS_WEB_ROLE }}
 
-      - name: Create a Lambda
+      - name: Create a Lambda if changed
+        if: |
+          github.event.head_commit.modified.includes('src/lambdas/glue_failed_job/lambda_function.py') ||
+          github.event.head_commit.modified.includes('src/lambdas/unzip_and_upload_to_bronze/lambda_function.py') ||
+          github.event.head_commit.modified.includes('infrastructure/create_lambda.py') || 
+          github.event.before == '0000000000000000000000000000000000000000'
         run: python infrastructure/create_lambda.py ${{ env.AWS_WEB_ROLE }} ${{ env.REGION }}
 
-      - name: Create a SNS
+      - name: Create a SNS if changed
+        if: |
+          github.event.head_commit.modified.includes('infrastructure/create_sns.py') || 
+          github.event.before == '0000000000000000000000000000000000000000'
         run: python infrastructure/create_sns.py
 
   deploy_glue_jobs:
@@ -127,8 +141,7 @@ jobs:
       - name: Deploy Glue Job - ${{ matrix.glue }}
         run: |
           JOB_NAME=$(basename "${{ matrix.glue }}")
-          python infrastructure/create_glue_jobs.py ${JOB_NAME} \
-          $AWS_WEB_ROLE \
+          python infrastructure/create_glue_jobs.py ${JOB_NAME} $AWS_WEB_ROLE \
           s3://$BUCKET_NAME/warehouse/event-driven-cpssw-artifacts/glue-scripts/${{ matrix.glue }}.py
           $BUCKET_NAME \
           s3://$BUCKET_NAME/warehouse/event-driven-cpssw-artifacts/dist/$WHEEL_FILE_NAME
