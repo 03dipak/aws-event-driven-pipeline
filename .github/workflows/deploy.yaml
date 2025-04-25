@@ -11,7 +11,7 @@ env:
   BUCKET_NAME: ${{ secrets.AWS_BUCKET }}
   AWS_WEB_ROLE: ${{ secrets.AWS_WEB_ROLE }}
   DEST_PATH: code/customer_analytics
-  WHEEL_FILE_NAME: event-driven-cpssw-0.1.0-py3-none-any.whl
+  WHEEL_FILE_NAME: event_driven_cpssw-0.1.0-py3-none-any.whl
 
 jobs:
   setup:
