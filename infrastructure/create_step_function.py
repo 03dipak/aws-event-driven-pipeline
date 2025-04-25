@@ -31,7 +31,7 @@ def create_or_update_step_function(role_arn, state_machine_name, json_file_path)
             roleArn=role_arn
         )
 
-        print(f"State machine updated successfully: {update_response['stateMachineArn']}")
+        print(f"State machine updated successfully")
     
     except stepfunctions_client.exceptions.StateMachineDoesNotExist:
         print("Creating state machine")

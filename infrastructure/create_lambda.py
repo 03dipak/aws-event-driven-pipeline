@@ -46,7 +46,7 @@ if __name__ == "__main__":
     role_arn = sys.argv[1]
     region = sys.argv[2]
 
-    lambda_filenames = ["glue_failed_job.py", "unzip_and_upload_to_bronze.py"]
+    lambda_filenames = ["glue_failed_job", "unzip_and_upload_to_bronze"]
     lambda_base_path = "src/lambdas/"
 
     for filename in lambda_filenames:
