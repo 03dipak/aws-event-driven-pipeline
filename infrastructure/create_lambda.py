@@ -51,10 +51,7 @@ def deploy_lambda(lambda_name, lambda_path, role_arn, region, runtime="python3.1
                 response_code = client.update_function_code(
                     FunctionName=lambda_name,
                     ZipFile=zipped_code,
-                    Publish=True,
-                    Environment={
-                            'Variables': environment_variables  # Apply the environment variables
-                        }
+                    Publish=True
                 )
 
                 # Update the function configuration with environment variables
