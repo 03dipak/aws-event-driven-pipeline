@@ -8,8 +8,8 @@ def create_glue_job(job_name, role_arn, script_location, bucket_name, project_li
     default_arguments = {
         "--enable-glue-datacatalog": "true",
         "--job-bookmark-option": "job-bookmark-enable",
-        "--TempDir": f"s3://{bucket_name}/code/temp/{job_name}/",
-        "--S3_TARGET_PATH": f"s3://{bucket_name}/analytics/",
+        "--TempDir": f"s3://{bucket_name}/event-driven-cpssw-artifacts/code/temp/{job_name}/",
+        "--S3_TARGET_PATH": f"s3://{bucket_name}/event-driven-cpssw-artifacts/",
         "--extra-py-files": project_lib_path,
         "--job-language": "python"
     }
