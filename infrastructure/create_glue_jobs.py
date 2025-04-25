@@ -1,7 +1,7 @@
 import boto3
 import sys
 
-def create_glue_job(job_name, role_arn, script_location, bucket_name, project_lib_path, glue_version="4.0", worker_type="Standard", worker_count=2, rds_connection_name="my-rds-mysql-connection"):
+def create_glue_job(job_name, role_arn, script_location, bucket_name, project_lib_path, glue_version="4.0", worker_type="Standard", worker_count=2):
     client = boto3.client('glue')
 
     # Define Default Arguments
@@ -27,10 +27,7 @@ def create_glue_job(job_name, role_arn, script_location, bucket_name, project_li
             WorkerType=worker_type,
             NumberOfWorkers=worker_count,
             Timeout=2880,  # in minutes
-            DefaultArguments=default_arguments,
-            Connections={
-                "Connections": [rds_connection_name]
-            }
+            DefaultArguments=default_arguments
         )
         print(f"Job {job_name} created successfully!")
     except client.exceptions.AlreadyExistsException:
@@ -47,10 +44,7 @@ def create_glue_job(job_name, role_arn, script_location, bucket_name, project_li
                 'WorkerType': worker_type,
                 'NumberOfWorkers': worker_count,
                 'Timeout': 2880,
-                'DefaultArguments': default_arguments,
-                'Connections': {
-                    "Connections": [rds_connection_name]
-                }   
+                'DefaultArguments': default_arguments  
             }
         )
         print(f"Job {job_name} updated successfully!")
