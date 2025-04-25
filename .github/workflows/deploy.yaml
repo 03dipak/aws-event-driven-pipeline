@@ -55,10 +55,8 @@ jobs:
              $BUCKET_NAME bronze,silver,gold,meta_db
 
       - name: Create a Step Function
-        working-directory: ${{ github.workspace }}
         run: python infrastructure/create_step_function.py ${{ env.AWS_WEB_ROLE }} \
-             event-driven-etl-workflow \
-             src/step_functions/state_machine_definition.json
+             event-driven-etl-workflow "src/step_functions/state_machine_definition.json"
 
       - name: Create a Eventbridge
         run: python infrastructure/create_eventbridge.py event-driven-etl-workflow \
