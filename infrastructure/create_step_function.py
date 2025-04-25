@@ -7,7 +7,7 @@ def create_or_update_step_function(role_arn, state_machine_name, json_file_path)
     # Check if the state machine definition file exists
     if not os.path.exists(json_file_path):
         print(f"State machine definition file not found: {json_file_path}")
-        return
+        sys.exit(1)
 
     # Load the JSON definition
     with open(json_file_path, 'r') as file:
