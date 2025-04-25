@@ -1,0 +1,62 @@
+version: 1
+type: create
+database: silver
+table: dim_customers
+location: s3://glue-etl-dev-bucket-april2025/warehouse/silver/dim_customers/
+format: iceberg
+format_version: 2
+
+columns:
+  - name: customer_id
+    type: int
+
+  - name: customer_name
+    type: string
+
+  - name: email
+    type: string
+
+  - name: phone
+    type: string
+
+  - name: region
+    type: string
+
+  - name: postal_code
+    type: string
+
+  - name: country
+    type: string
+
+  - name: company_name
+    type: string
+
+  - name: address_line
+    type: string
+
+  - name: start_date
+    type: timestamp
+
+  - name: end_date
+    type: timestamp
+
+  - name: is_current
+    type: boolean
+
+  - name: created_at
+    type: timestamp
+
+  - name: updated_at
+    type: timestamp
+
+partitioned_by:
+  - country
+  - postal_code
+
+properties:
+  table_type: DIMENSION
+  classification: dimension
+  description: "Customer dimension table including SCD type 2 fields (start_date, end_date, is_current)."
+  iceberg.catalog: glue
+  external.table.purge: "true"
+  glue.database: silver

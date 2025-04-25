@@ -1,0 +1,9 @@
+{
+  "source": ["aws.s3"],
+  "detail-type": ["Object Created"],
+  "detail": {
+    "bucket": {
+      "name": ["bucket-march2025-88c0f2dc566e4df5b5775bf2367576f6"]
+    }
+  }
+}

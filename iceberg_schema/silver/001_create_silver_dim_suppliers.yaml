@@ -1,0 +1,69 @@
+version: 1
+type: create
+database: silver
+table: dim_suppliers
+location: s3://glue-etl-dev-bucket-april2025/warehouse/silver/dim_suppliers/
+format: iceberg
+format_version: 2
+
+columns:
+  - name: supplier_id
+    type: int
+
+  - name: supplier_name
+    type: string
+
+  - name: contact_name
+    type: string
+
+  - name: email
+    type: string
+
+  - name: phone
+    type: string
+
+  - name: address
+    type: string
+
+  - name: city
+    type: string
+
+  - name: state
+    type: string
+
+  - name: country
+    type: string
+
+  - name: postal_code
+    type: string
+
+  - name: business_category
+    type: string
+
+  - name: start_date
+    type: timestamp
+
+  - name: end_date
+    type: timestamp
+
+  - name: is_current
+    type: boolean
+
+  - name: created_at
+    type: timestamp
+
+  - name: updated_at
+    type: timestamp
+
+partitioned_by:
+  - country
+  - business_category
+
+properties:
+  table_type: DIMENSION
+  classification: dimension
+  description: "Supplier dimension table including SCD type 2 fields (start_date, end_date, is_current)."
+  iceberg.catalog: glue
+  external.table.purge: "true"
+  glue.database: silver
+  

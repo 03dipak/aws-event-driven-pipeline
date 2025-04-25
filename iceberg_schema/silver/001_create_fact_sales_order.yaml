@@ -1,0 +1,66 @@
+version: 1
+type: create
+database: silver
+table: fact_sale_orders
+format: iceberg
+location: s3://glue-etl-dev-bucket-april2025/warehouse/silver/fact_sale_orders/
+format_version: 2
+
+columns:
+  - name: salesordernumber
+    type: string
+
+  - name: salesorderlinenumber
+    type: string
+
+  - name: ordertype
+    type: string
+
+  - name: quantity
+    type: int
+
+  - name: taxamount
+    type: decimal(7,4)
+
+  - name: unitprice
+    type: decimal(8,4)
+
+  - name: customer_id
+    type: int
+
+  - name: product_id
+    type: int
+
+  - name: createddate
+    type: timestamp
+
+  - name: processeddate
+    type: timestamp
+
+  - name: supplier_id
+    type: string
+
+  - name: warehouse_id
+    type: string
+
+  - name: year
+    type: int
+
+  - name: month
+    type: int
+
+  - name: day
+    type: int
+
+partitioned_by:
+  - year
+  - month
+  - day
+
+properties:
+  table_type: FACT
+  classification: transactional
+  description: "Sales order transactions with order line level granularity."
+  iceberg.catalog: glue
+  external.table.purge: "true"
+  glue.database: silver

@@ -1,0 +1,141 @@
+---
+name: Deploy AWS Infrastructure
+
+"on":
+  push:
+    branches:
+      - main
+
+env:
+  REGION: ${{ secrets.AWS_REGION }}
+  BUCKET_NAME: ${{ secrets.AWS_BUCKET }}
+  AWS_WEB_ROLE: ${{ secrets.AWS_WEB_ROLE }}
+  DEST_PATH: code/customer_analytics
+  WHEEL_FILE_NAME: event-driven-cpssw-0.1.0-py3-none-any.whl
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ env.AWS_WEB_ROLE }}
+          aws-region: ${{ env.REGION }}
+
+      - name: Create S3 folders if not exist
+        run: |
+          python infrastructure/create_folders.py $BUCKET_NAME \
+          "warehouse/event-driven-cpssw-artifacts/dist/" \
+          "warehouse/event-driven-cpssw-artifacts/glue-scripts/" \
+          "warehouse/schema/"
+          "warehouse/landing/zip_uploads/"
+
+      - name: Build wheel file
+        run: python setup.py bdist_wheel
+
+      - name: Create a Database
+        run: python create_databases.py ${{ env.REGION }} \
+             $BUCKET_NAME bronze,silver,gold,meta_db
+
+      - name: Create a Step Function
+        run: python create_step_function.py ${{ env.AWS_WEB_ROLE }} \
+             event-driven-etl-workflow \
+             workflows/step_functions/state_machine_definition.json
+
+      - name: Create a Eventbridge
+        run: python create_eventbridge_rule.py event-driven-etl-workflow \
+             ${{ env.REGION }} $BUCKET_NAME landing/zip_uploads/ \
+             ${{ env.AWS_WEB_ROLE }}
+
+      - name: Create a Lambda
+        run: python create_lambda.py ${{ env.AWS_WEB_ROLE }} ${{ env.REGION }}
+
+      - name: Create a Lambda Environment Variable
+        run: python create_lambda_environment.py glue_failed_job \
+             ${{ env.AWS_WEB_ROLE }}
+
+      - name: Create a SNS
+        run: python create_sns.py
+
+      - name: Upload Wheel Artifact to S3
+        run: |
+          aws s3 cp dist/$WHEEL_FILE_NAME \
+          s3://$BUCKET_NAME/warehouse/event-driven-cpssw-artifacts/dist/
+          aws s3 cp glue_jobs \
+          s3://$BUCKET_NAME/warehouse/event-driven-cpssw-artifacts/glue-scripts/ \
+          --recursive
+          aws s3 sync iceberg_schema/ s3://$BUCKET_NAME/warehouse/schema/ \
+          --exact-timestamps
+
+  deploy_glue_jobs:
+    needs: setup
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    strategy:
+      matrix:
+        glue:
+          - bootstrap/iceberg_migration
+          - bronze/ingest_customers
+          - bronze/ingest_products
+          - bronze/ingest_sale_orders
+          - bronze/ingest_suppliers
+          - bronze/ingest_warehouses
+          - silver/silver_dimension_customers
+          - silver/silver_dimension_products
+          - silver/silver_dimension_suppliers
+          - silver/silver_dimension_warehouses
+          - silver/silver_fact_sale_orders
+          - gold/gold_summary_reports
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ env.AWS_WEB_ROLE }}
+          aws-region: ${{ env.REGION }}
+
+      - name: Create S3 folders if not exist
+        run: |
+          JOB_NAME=$(basename "${{ matrix.glue }}")
+          FOLDER_PATH="event-driven-cpssw-artifacts/code/temp/${JOB_NAME}/"
+          echo "Creating folder in S3: $FOLDER_PATH"
+          python infrastructure/create_folders.py $BUCKET_NAME $FOLDER_PATH
+
+      - name: Deploy Glue Job - ${{ matrix.glue }}
+        run: |
+          JOB_NAME=$(basename "${{ matrix.glue }}")
+          python infrastructure/create_glue_jobs.py ${JOB_NAME} \
+          $AWS_WEB_ROLE \
+          s3://$BUCKET_NAME/warehouse/event-driven-cpssw-artifacts/glue-scripts/${{ matrix.glue }}.py
+          $BUCKET_NAME \
+          s3://$BUCKET_NAME/warehouse/event-driven-cpssw-artifacts/dist/$WHEEL_FILE_NAME

@@ -1,0 +1,16 @@
+type: alter
+database: bronze_db
+table: customers
+actions:
+  - action: add_column
+    name: phone_number
+    type: string
+  - action: update_column_type
+    name: customer_name
+    new_type: string
+  - action: update_partition
+    partitioned_by:
+      - country
+      - registration_date
+  - action: update_location
+    location: s3://your-bucket-name/warehouse/bronze_db/customers/

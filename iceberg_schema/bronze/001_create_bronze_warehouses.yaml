@@ -1,0 +1,32 @@
+type: create
+database: bronze
+table: warehouses
+location: s3://glue-etl-dev-bucket-april2025/warehouse/bronze/warehouses
+format_version: 2
+partitioned_by:
+  - country
+  - state
+  - ingestion_timestamp
+columns:
+  - name: warehouse_id 
+    type: STRING
+  - name: warehouse_name 
+    type: STRING
+  - name: location 
+    type: STRING
+  - name: city 
+    type: STRING
+  - name: state 
+    type: STRING
+  - name: country 
+    type: STRING
+  - name: postal_code 
+    type: INT
+  - name: capacity 
+    type: INT
+  - name: created_at 
+    type: TIMESTAMP
+  - name: updated_at 
+    type: TIMESTAMP
+  - name: ingestion_timestamp
+    type: TIMESTAMP

@@ -1,0 +1,6 @@
+[
+  {
+    "Id": "unzip_and_upload_to_bronze",
+    "function": "unzip_and_upload_to_bronze"
+  }
+]

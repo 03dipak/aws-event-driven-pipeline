@@ -1,0 +1,10 @@
+type: alter
+database: bronze
+table: customers
+actions:
+  - action: add_column
+    name: loyalty_score
+    type: int
+  - action: update_column_type
+    name: EmailAddress
+    new_type: email

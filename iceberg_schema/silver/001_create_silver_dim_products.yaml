@@ -1,0 +1,77 @@
+version: 1
+type: create
+database: silver
+table: dim_products
+location: s3://glue-etl-dev-bucket-april2025/warehouse/silver/dim_products/
+format: iceberg
+format_version: 2
+
+columns:
+  - name: product_id
+    type: int
+
+  - name: product_name
+    type: string
+
+  - name: product_number
+    type: int
+
+  - name: category
+    type: int
+
+  - name: sub_category
+    type: int
+
+  - name: color
+    type: string
+
+  - name: size
+    type: string
+
+  - name: weight
+    type: double
+
+  - name: unit_price
+    type: double
+
+  - name: cost_price
+    type: double
+
+  - name: sell_start_date
+    type: timestamp
+
+  - name: thumbnail_photo
+    type: binary
+
+  - name: thumbnail_photo_file_name
+    type: string
+
+  - name: rowguid
+    type: string
+
+  - name: start_date
+    type: timestamp
+
+  - name: end_date
+    type: timestamp
+
+  - name: is_current
+    type: boolean
+
+  - name: created_at
+    type: timestamp
+
+  - name: updated_at
+    type: timestamp
+
+partitioned_by:
+  - category
+  - sub_category
+
+properties:
+  table_type: DIMENSION
+  classification: dimension
+  description: "Product dimension table including SCD type 2 fields (start_date, end_date, is_current)."
+  iceberg.catalog: glue
+  external.table.purge: "true"
+  glue.database: silver

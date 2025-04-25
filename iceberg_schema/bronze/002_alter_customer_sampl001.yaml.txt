@@ -1,0 +1,19 @@
+type: alter
+database: bronze
+table: customers
+alterations:
+  - action: add_column
+    name: loyalty_score
+    type: INT
+  - action: drop_column
+    name: obsolete_flag
+  - action: rename_column
+    old_name: full_name
+    new_name: customer_name
+  - action: update_column_type
+    name: revenue
+    new_type: BIGINT
+  - action: set_tblproperties
+    properties:
+      write.format.default: parquet
+      read.split.target-size: 134217728

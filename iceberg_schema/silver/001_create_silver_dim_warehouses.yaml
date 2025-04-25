@@ -1,0 +1,59 @@
+version: 1
+type: create
+database: silver
+table: dim_warehouses
+location: s3://glue-etl-dev-bucket-april2025/warehouse/silver/dim_warehouses/
+format: iceberg
+format_version: 2
+
+columns:
+  - name: warehouse_id
+    type: int
+
+  - name: warehouse_name
+    type: string
+
+  - name: location
+    type: string
+
+  - name: city
+    type: string
+
+  - name: state
+    type: string
+
+  - name: country
+    type: string
+
+  - name: postal_code
+    type: int
+
+  - name: capacity
+    type: int
+
+  - name: start_date
+    type: timestamp
+
+  - name: end_date
+    type: timestamp
+
+  - name: is_current
+    type: boolean
+
+  - name: created_at
+    type: timestamp
+
+  - name: updated_at
+    type: timestamp
+
+partitioned_by:
+  - country
+  - postal_code
+
+properties:
+  table_type: DIMENSION
+  classification: dimension
+  description: "Warehouse dimension table including SCD type 2 fields (start_date, end_date, is_current)."
+  iceberg.catalog: glue
+  external.table.purge: "true"
+  glue.database: silver

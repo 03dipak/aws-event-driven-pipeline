@@ -1,0 +1,39 @@
+type: create
+database: bronze
+table: products
+location: s3://glue-etl-dev-bucket-april2025/warehouse/bronze/products
+format_version: 2
+partitioned_by:
+  - ProductCategoryID
+  - ingestion_timestamp
+columns:
+  - name: ProductID 
+    type: INT
+  - name: Name 
+    type: STRING
+  - name: ProductNumber 
+    type: STRING
+  - name: Color 
+    type: STRING
+  - name: StandardCost 
+    type: DECIMAL(10,2)
+  - name: ListPrice 
+    type: DECIMAL(10,2)
+  - name: Size 
+    type: STRING
+  - name: Weight 
+    type: DECIMAL(10,2)
+  - name: ProductCategoryID 
+    type: INT
+  - name: ProductModelID 
+    type: INT
+  - name: SellStartDate 
+    type: TIMESTAMP
+  - name: ThumbNailPhoto 
+    type: BINARY
+  - name: ThumbnailPhotoFileName 
+    type: STRING
+  - name: rowguid 
+    type: STRING
+  - name: ingestion_timestamp
+    type: TIMESTAMP

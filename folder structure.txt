@@ -1,0 +1,202 @@
+event-driven-iceberg-data-pipeline/
+│
+├── infrastructure/                      # Infrastructure-as-Code (IaC) scripts
+│   ├── templates/                       # CDK/CloudFormation/Terraform templates for AWS resources
+│   ├── iceberg/                         # Iceberg table creation and management
+│   ├── s3/                              # S3 bucket setup for storing Iceberg data
+│   ├── glue/                            # Glue jobs, crawlers, and triggers for Iceberg tables
+│   ├── iam/                             # IAM role and policy management
+│   └── eventbridge/                     # EventBridge integration to trigger Iceberg workflows
+│
+├── src/                                 # Data pipeline source code
+│   ├── lambdas/                         # Lambda functions triggered by events
+│   │   ├── event_handler/               # Event-driven processing logic
+│   │   ├── iceberg_updater/             # Lambda functions to update Iceberg tables
+│   │   └── helpers/                     # Common utilities used across Lambda functions
+│   ├── glue_etl/                        # Glue ETL jobs for Iceberg tables
+│   │   ├── bronze/                     # Raw data ingestion and transformation (Event-driven)
+│   │   │   ├── ingest_customers.py          # Raw data load jobs (e.g., from RDS or S3)
+│   │   │   ├── ingest_products.py          # Raw data load jobs (e.g., from RDS or S3)
+│   │   │   ├── ingest_suppliers.py          # Raw data load jobs (e.g., from RDS or S3)
+│   │   │   ├── ingest_sale_orders.py          # Raw data load jobs (e.g., from RDS or S3)
+│   │   │   ├── ingest_warehouses.py          # Raw data load jobs (e.g., from RDS or S3)
+│   │   │   └── raw_event_processing.py  # Basic transformations to clean and prepare data
+│   │   ├── silver/                     # Cleansed and enriched data
+│   │   │   ├── cleanse_data.py         # Data cleansing jobs (e.g., deduplication)
+│   │   │   ├── enrich_data.py          # Data enrichment jobs (e.g., joining with reference data)
+│   │   │   └── intermediate_aggregates.py # Aggregation jobs before final transformation
+│   │   ├── gold/                       # Business-ready data (aggregated, optimized)
+│   │   │   ├── aggregate_sales.py      # Aggregation jobs (e.g., total sales per customer)
+│   │   │   ├── report_data.py          # Transformations for BI-ready data (e.g., sales reports)
+│   │   │   └── optimize_for_reporting.py # Optimizing data for consumption by BI tools
+│   │   └── helpers/                    # Common functions used across layers
+│   └── utils/                           # Helper functions for Iceberg, Lambda, Glue jobs
+│   │   │   ├── common_ingest.py          # common functions
+│   │   │   ├── glue_config.py          # changes variable as per env & variable
+│   │   │   ├── constant.py              # defines a variale
+│   │   │   └── __init__.py               # init package
+│   ├── helpers/                         # helper functions
+│   │   ├── __init__.py/                 # init package
+│   │   └── logging.py                   # logger
+├── iceberg_tables/                      # Iceberg table management scripts and definitions
+│   ├── bronze/                          # Iceberg tables for raw data (unoptimized or partitioned)
+│   ├── silver/                          # Iceberg tables for cleansed/enriched data
+│   └── gold/                            # Iceberg tables for aggregated, curated data
+├── events/                              # Event-driven architecture definitions
+│   ├── schema/                          # Event schemas used for triggering workflows
+│   ├── event_types/                     # Event types for routing to appropriate Lambdas/Glue jobs
+│   └── sample_events/                   # Example events for local testing and mockups
+│
+├── workflows/                           # Workflow orchestration for Iceberg and event-driven pipelines
+│   ├── step_functions/                  # Step Functions workflows with Iceberg integration
+│   └── triggers/                        # Event-driven triggers to load, transform, and update Iceberg tables
+│
+├── tests/                               # Unit and integration tests
+│   ├── unit_tests/                      # Unit tests for Iceberg integration and transformations
+│   ├── integration_tests/               # End-to-end testing for event-driven workflows with Iceberg
+│   └── test_data/                       # Sample test data used in tests for Iceberg tables
+│
+├── docs/                                # Documentation for the project
+│   ├── architecture_diagrams/           # High-level architecture (Iceberg with EventBridge, Lambda, Glue)
+│   └── API/                             # API documentation for services interacting with Iceberg tables
+│
+├── .github/                              # GitHub actions and CI/CD workflows
+│   └── workflows/
+│       └── deploy.yml                    # GitHub Actions deployment configuration
+│
+├── logs/                                # Logging and monitoring for Iceberg integration
+│   ├── cloudwatch/                      # CloudWatch configurations for monitoring Iceberg operations
+│   ├── monitoring/                      # Metrics and monitoring setup for Iceberg pipeline
+│   └── alerts/                          # Alerts for failures, issues with Iceberg data pipeline
+│
+├── requirements.txt                     # Dependencies for Python packages, Glue, and Lambda
+├── README.md                            # Project setup and overview
+└── .gitignore                           # Files/folders to ignore in version control
+
+my notes
+
+
+balancing Lambda for light event processing and AWS Glue for heavier, scalable data ETL makes for a clean,
+optimized architecture. Here’s the best practice design pattern based on your use case and real-world enterprise setups:
+
+Upload ZIP → S3 Event → Lambda (light unzip & place raw) → Step Function (or EventBridge) → 
+AWS Glue Job (partition, clean, validate, write)
+
+df.writeTo("iceberg_catalog.db.bronze_sales_orders").partitionedBy("createddate").createOrReplace()
+
+
+Layer   | Service       | Responsibilities
+Raw     | S3            | Temporary storage of zipped files
+Lambda  | AWS Lambda    | Lightweight ZIP extraction, upload to Bronze
+Bronze  | AWS Glue      | Load raw CSVs, validate, clean, store in Iceberg Bronze with partitioning
+Silver  | AWS Glue      | Enrich data, joins with dimension tables, deduplicate, SCD logic, QC etc.
+Gold    | AWS Glue      | Curated data for analytics (facts, dims, SCD Type 3, KPIs)
+
+
+Ah, excellent question, and it gets to the heart of event-driven ingestion integrity and deduplication.
+
+If your pipeline is triggered 3–5 times per day with ZIPs containing overlapping or incremental data (or even replays), you must build idempotency and tracking into your architecture to ensure:
+
+Step  | Tool          | Action
+1.      Upload ZIP    | S3                        | Raw upload
+2.      Trigger       | Lambda                    | Unzip + upload CSVs to Bronze S3
+3.      Register File | Lambda                    | Log file metadata into DynamoDB or S3
+4.      Start ETL     | Step Function/EventBridge | Start Glue Bronze job
+5.      Process       | Glue                      | Read file, validate, de-dupe, write to Iceberg
+6.      Track         | Glue                      | Update metadata table with processing status
+
+
+
+Component                               | Purpose
+S3 (raw/bronze)                         | Store original and extracted CSVs
+Lambda                                  | Unzips files, uploads to bronze paths, updates DynamoDB
+DynamoDB                                | Metadata registry (file tracking)
+Glue Job (Bronze ELT)                   | Reads NEW files from DynamoDB, processes and deduplicates them, writes to Iceberg
+Iceberg Table (Bronze Layer)            | Stores cleaned bronze-level data
+Step Function or EventBridge (optional) | Orchestrate flows end-to-end
+
+
+
+
+Medallion Architecture in AWS Glue (Bronze, Silver, Gold)
+Bronze Layer (Raw Data):
+    This layer stores raw data ingested from various sources (e.g., S3, databases, APIs). It's typically used for historical data that has not yet been transformed or cleaned.
+
+    Data: Raw, unstructured, or minimally processed data.
+
+    Glue Jobs: Simple jobs that load the data into S3 or a raw staging area.
+
+    Schema: May not have a clean schema; schema drift is expected.
+
+    In the context of your Glue pipeline:
+
+    You might load raw event logs, transaction data, or IoT sensor data from S3 or a relational database (e.g., MySQL, RDS).
+
+    For example, bronze/ contains raw JSON or CSV files as they are ingested.
+
+Silver Layer (Cleansed Data):
+    This layer involves transforming the raw data into a more structured form. Data quality is improved, and cleansing or simple transformation processes (e.g., filtering, deduplication) are applied.
+
+    Data: Cleaned, filtered, and enriched raw data.
+
+    Glue Jobs: ETL jobs that clean the raw data, apply transformations (like standardization or filling missing values), and enrich it.
+
+    Schema: More structured than the Bronze layer; typically uses a standardized schema.
+
+    For example, Glue jobs in the silver/ layer may:
+
+    Cleanse and filter customer data, removing duplicates or fixing issues like inconsistent date formats.
+
+    Join data from multiple sources (e.g., customer details and purchase records).
+
+Gold Layer (Curated Data):
+    This layer holds high-quality, business-ready data. It’s typically used for analytics, reporting, and machine learning. Data is fully transformed, aggregated, and optimized for consumption.
+
+    Data: Aggregated, transformed, and ready for BI (business intelligence) or ML (machine learning).
+
+    Glue Jobs: Jobs that aggregate, join, and perform advanced transformations to prepare the data for consumption by analytics tools, dashboards, or other downstream services.
+
+    Schema: Highly structured data, often optimized for performance (e.g., partitioned, indexed).
+
+    For example, in the gold/ layer, Glue jobs might:
+
+    Aggregate the customer purchase behavior data (total sales by customer, ranking, etc.) and store it in a structured Parquet format for fast querying with Amazon Athena or Redshift.
+
+    Perform transformations that are business-specific, like calculating customer lifetime value (CLV) or preparing data for a recommendation engine.
+
+
+1. EventBridge detects new ZIP in S3 (Bronze layer)
+2. Lambda triggered → Extracts file → Emits event(s) to EventBridge
+3. Step Function triggered for Bronze ETL:
+   - Run all Bronze jobs (parallel)
+   - Wait → Poll → Check status of all Bronze jobs
+4. After all Bronze succeed:
+   - Trigger all Silver dimension jobs (parallel)
+   - Wait → Poll → Check status of all Silver dimension jobs
+5. If all Silver dimensions succeed:
+   - Trigger Silver fact job(s)
+6. If all succeed → Run Gold ETL
+
+folder to be created
+event-driven-cpssw-artifacts/dist/event_driven_cpssw-0.1.0-py3-none-any.whl
+event-driven-cpssw-artifacts/glue-scripts/ upload script here
+event-driven-cpssw-artifacts/code/temp/{job_name}/
+warehouse/meta_db/schema_migrations/
+
+
+
+database to be created
+meta_db
+bronze
+silver
+gold
+
+file to be uploaded
+aws s3 cp dist/$WHEEL_FILE_NAME s3://warehouse/event-driven-cpssw-artifacts/dist/
+#aws s3 cp glue_jobs s3://warehouse/event-driven-cpssw-artifacts/glue-scripts/ --recursive
+#aws s3 sync iceberg_schema/ s3://warehouse/schema/ --exact-timestamps
+
+
+Your IAM role EventBridgeInvokeStepFunctionRole allows states:StartExecution
+
+Trust policy has events.amazonaws.com as principal

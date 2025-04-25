@@ -1,0 +1,39 @@
+version: 1
+type: create
+database: gold
+table: fact_sale_summary_by_supplier_monthly
+location: s3://glue-etl-dev-bucket-april2025/warehouse/gold/fact_sale_summary_by_supplier_monthly/
+format: iceberg
+format_version: 2
+partitioned_by:
+  - sales_month
+columns:
+  - name: sales_month
+    type: string
+  - name: supplier_id
+    type: int
+  - name: supplier_name
+    type: string
+  - name: total_sales_amount
+    type: double
+  - name: total_quantity_sold
+    type: double
+  - name: total_orders
+    type: int
+  - name: last_updated
+    type: timestamp
+  - name: start_date
+    type: timestamp
+  - name: end_date
+    type: timestamp
+  - name: is_current
+    type: boolean
+  - name: created_at
+    type: timestamp
+  - name: updated_at
+    type: timestamp
+properties:
+  table_type: FACT
+  classification: transactional
+  iceberg.catalog: glue
+  glue.database: gold

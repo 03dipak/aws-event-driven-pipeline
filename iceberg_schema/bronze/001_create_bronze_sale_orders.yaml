@@ -1,0 +1,43 @@
+type: create
+database: bronze
+table: sale_orders
+location: s3://glue-etl-dev-bucket-april2025/warehouse/bronze/sale_orders
+format_version: 2
+partitioned_by:
+  - year
+  - month
+  - day
+  - ingestion_timestamp
+columns:
+  - name: salesordernumber 
+    type: STRING
+  - name: salesorderlinenumber 
+    type: INT
+  - name: createddate 
+    type: DATE
+  - name: processeddate 
+    type: DATE
+  - name: ordertype 
+    type: STRING
+  - name: quantity 
+    type: INT
+  - name: unitprice 
+    type: DOUBLE
+  - name: taxamount 
+    type: DOUBLE
+  - name: customer_id 
+    type: INT
+  - name: product_id 
+    type: INT
+  - name: supplier_id 
+    type: STRING
+  - name: warehouse_id 
+    type: STRING
+  - name: year
+    type: INT
+  - name: month
+    type: INT
+  - name: day
+    type: INT
+  - name: ingestion_timestamp
+    type: TIMESTAMP

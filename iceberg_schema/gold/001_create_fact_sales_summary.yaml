@@ -1,0 +1,35 @@
+version: 1
+type: create
+database: gold
+table: fact_sales_summary
+location: s3://glue-etl-dev-bucket-april2025/warehouse/gold/fact_sales_summary/
+format: iceberg
+format_version: 2
+partitioned_by:
+  - sale_date
+columns:
+  - name: customer_name
+    type: string
+  - name: product_name
+    type: string
+  - name: supplier_name
+    type: string
+  - name: warehouse_name
+    type: string
+  - name: sale_date
+    type: date
+  - name: total_quantity_sold
+    type: double
+  - name: total_sales_amount
+    type: double
+  - name: total_tax_collected
+    type: double
+  - name: created_at
+    type: timestamp
+  - name: updated_at
+    type: timestamp
+properties:
+  table_type: FACT
+  classification: transactional
+  iceberg.catalog: glue
+  glue.database: gold
