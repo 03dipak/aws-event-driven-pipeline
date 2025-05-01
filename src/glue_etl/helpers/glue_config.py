@@ -26,3 +26,17 @@ CONFIG = {
 
 def get_config():
     return CONFIG[ENV]
+
+def configure_iceberg_spark_session(spark, warehouse_path: str, catalog_name: str = "glue_catalog"):
+    """
+    Applies Iceberg + AWS Glue + S3 Spark configurations to the provided Spark session.
+
+    Parameters:
+    - spark: SparkSession
+    - warehouse_path: S3 path where Iceberg tables are stored
+    - catalog_name: Name of the Iceberg catalog (default: "glue_catalog")
+    """
+    spark.conf.set(f"spark.sql.catalog.{catalog_name}", "org.apache.iceberg.aws.glue.GlueCatalog")
+    spark.conf.set(f"spark.sql.catalog.{catalog_name}.warehouse", warehouse_path)
+    spark.conf.set(f"spark.sql.catalog.{catalog_name}.io-impl", "org.apache.iceberg.aws.s3.S3FileIO")
+    spark.conf.set("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")

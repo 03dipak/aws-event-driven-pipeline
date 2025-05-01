@@ -7,7 +7,8 @@ from awsglue.job import Job
 from awsglue.utils import getResolvedOptions
 from pyspark.sql import functions as F
 from glue_etl.helpers import get_logger,read_iceberg,perform_merge
-from glue_etl.helpers import ICEBERG_SILVER_CUSTOMERS,ICEBERG_SILVER_PRODUCTS,ICEBERG_SILVER_SUPPLIERS,ICEBERG_SILVER_WAREHOUSES,ICEBERG_SILVER_SALE_ORDERS,ICEBERG_GOLD_SALE_SUMMARY_COUNTRY,ICEBERG_GOLD_SALE_SUMMARY_DAILY,ICEBERG_GOLD_SALE_SUMMARY_MONTHLY,ICEBERG_GOLD_SALE_SUMMARY
+from glue_etl.helpers import ICEBERG_SILVER_CUSTOMERS,ICEBERG_SILVER_PRODUCTS,ICEBERG_SILVER_SUPPLIERS,ICEBERG_SILVER_WAREHOUSES,ICEBERG_SILVER_SALE_ORDERS,ICEBERG_GOLD_SALE_SUMMARY_COUNTRY,ICEBERG_GOLD_SALE_SUMMARY_DAILY,ICEBERG_GOLD_SALE_SUMMARY_MONTHLY,ICEBERG_GOLD_SALE_SUMMARY,BUCKET_NAME
+from glue_etl.helpers.glue_config import configure_iceberg_spark_session
 
 # ---------- Parse job arguments ----------
 args = getResolvedOptions(sys.argv, ["JOB_NAME"])
@@ -21,6 +22,11 @@ job.init(args["JOB_NAME"], args)
 
 # Initialize Logger
 logger = get_logger(args['JOB_NAME'])
+
+warehouse_path = f"s3://{BUCKET_NAME}/warehouse/"
+# Set Iceberg configs
+configure_iceberg_spark_session(spark, warehouse_path)
+
 # ---------- run elt ----------
 def run_etl():
     start_time = time.time()

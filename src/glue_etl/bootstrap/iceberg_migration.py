@@ -13,19 +13,17 @@ from io import BytesIO
 import textwrap
 from datetime import datetime, timezone
 from glue_etl.helpers import BUCKET_NAME
+from glue_etl.helpers.glue_config import configure_iceberg_spark_session
 # ---------- Parse job arguments ----------
 args = getResolvedOptions(sys.argv, ["JOB_NAME"])
 
 # ---------- Initialize Spark and Glue Context ----------
 glueContext = GlueContext(SparkContext.getOrCreate())
 spark = glueContext.spark_session
-warehouse_path = f"s3:{BUCKET_NAME}/warehouse/"  # update accordingly
+warehouse_path = f"s3://{BUCKET_NAME}/warehouse/"  # update accordingly
 meta_schema_path = f"s3://{BUCKET_NAME}/warehouse/meta_db/schema_migrations/"
 # Set Iceberg configs
-spark.conf.set("spark.sql.catalog.glue_catalog", "org.apache.iceberg.aws.glue.GlueCatalog")
-spark.conf.set("spark.sql.catalog.glue_catalog.warehouse", warehouse_path)
-spark.conf.set("spark.sql.catalog.glue_catalog.io-impl", "org.apache.iceberg.aws.s3.S3FileIO")
-spark.conf.set("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
+configure_iceberg_spark_session(spark, warehouse_path)
 
 job = Job(glueContext)
 job.init(args["JOB_NAME"], args)
