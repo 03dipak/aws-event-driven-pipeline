@@ -120,7 +120,7 @@ jobs:
       - name: Create S3 folders if not exist
         run: |
           JOB_NAME=$(basename "${{ matrix.glue }}")
-          FOLDER_PATH="event-driven-cpssw-artifacts/code/temp/${JOB_NAME}/"
+          FOLDER_PATH="warehouse/event-driven-cpssw-artifacts/code/temp/${JOB_NAME}/"
           echo "Creating folder in S3: $FOLDER_PATH"
           python infrastructure/create_folders.py $BUCKET_NAME $FOLDER_PATH
 
