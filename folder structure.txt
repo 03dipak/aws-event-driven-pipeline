@@ -200,3 +200,5 @@ aws s3 cp dist/$WHEEL_FILE_NAME s3://warehouse/event-driven-cpssw-artifacts/dist
 Your IAM role EventBridgeInvokeStepFunctionRole allows states:StartExecution
 
 Trust policy has events.amazonaws.com as principal
+
+$ unzip event_driven_cpssw-0.1.0-py3-none-any.whl -d extracted_package
